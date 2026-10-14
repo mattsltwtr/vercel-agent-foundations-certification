@@ -4,21 +4,50 @@ import {
   convertToModelMessages,
   type UIMessage,
 } from "ai";
-import { searchProducts, getAllCategories, returnOrder, getProductDetails } from "@/lib/tools";
+import {
+  bash,
+  getReturnsHistory,
+  getInventoryStock,
+  getSalesAnalytics,
+  getSupportTickets,
+  searchProducts,
+  getAllCategories,
+} from "@/lib/tools";
 
-export async function chatFlow(messages: UIMessage[]) {
+export const backOfficeInstructions = `You are the back-office assistant for the Vercel swag store. You have read-only access to returns, inventory, sales, and support tickets through tools, and a persistent bash sandbox for computation.
+
+## Tools
+- Returns: getReturnsHistory
+- Inventory: getInventoryStock
+- Sales: getSalesAnalytics
+- Support: getSupportTickets
+- Computation: bash (persistent sandbox)
+
+## How to answer
+- All prices, refund amounts, and revenues are in cents. Convert to dollars in user-facing answers (e.g. 2800 → $28.00).
+- Be concrete: name specific products, give specific numbers, and state the date range you used.
+- If the user gives a vague time window ("this month", "recently"), pick a sensible range, state it explicitly, and proceed.
+- For multi-step inference (return rates, day-over-day trends, spike detection, joins between sales and returns), prefer the bash tool: write fetched JSON to /tmp with a heredoc, then run python3 (stdlib only, no pandas) to compute. Don't eyeball aggregates over more than ~10 rows.
+- Keep answers short and scannable. Lead with the headline number or finding, then a brief breakdown.
+- Never promise to change anything in the store, you have read-only tools.`;
+
+export async function adminChatFlow(messages: UIMessage[]) {
   "use workflow";
 
   const modelMessages = await convertToModelMessages(messages);
 
   const agent = new WorkflowAgent({
     model: "anthropic/claude-sonnet-5",
-    instructions: `You are a helpful assistant for the Vercel swag store.
-    When the user asks about products, availability, or recommendations, use the searchProducts tool to look up real catalog data before answering.
-    When asked about a type or category of product use the getAllCategories tool for getting valid categories before using searchProducts
-    When asked for details about a specific product use the getProductDetails tool to retrieve all information
-    When the user wants to return an order, use the returnOrder tool. Ask for the order ID and reason if they haven't provided them. Example order IDs are 11111, 22222, and 33333.`,
-    tools: { searchProducts, getAllCategories, returnOrder, getProductDetails },
+    instructions: backOfficeInstructions,
+    tools: {
+      bash,
+      getReturnsHistory,
+      getInventoryStock,
+      getSalesAnalytics,
+      getSupportTickets,
+      searchProducts,
+      getAllCategories,
+    },
   });
 
   await agent.stream({
