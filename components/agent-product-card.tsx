@@ -14,7 +14,7 @@ export function AgentProductCard({ invocation }: AgentProductCardProps) {
     invocation.state === "input-streaming" ||
     invocation.state === "input-available"
   ) {
-    const id = invocation.input?.idOrSlug;
+    const id = invocation.input?.productId;
     return (
       <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
         Looking up{id ? ` "${id}"` : ""}…
